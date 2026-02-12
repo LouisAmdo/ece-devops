@@ -1,0 +1,20 @@
+# Docker Compose equivalent of the Vagrant CentOS 7 VM (Part 1)
+# Replaces: vagrant up / vagrant ssh / vagrant halt / vagrant destroy
+
+version: '3.8'
+
+services:
+  centos_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: centos.server.local
+    hostname: centos-server
+    # Equivalent to Vagrant VM specs
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+          cpus: '1'
+    stdin_open: true
+    tty: true

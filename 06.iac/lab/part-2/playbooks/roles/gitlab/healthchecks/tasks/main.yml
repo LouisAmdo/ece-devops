@@ -14,15 +14,72 @@
 #   retries: 2
 # END OF OPTIONAL TASKS
 
+# ============================================================
+# 1. Health Check (basic)
+# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#health
+# ============================================================
 - name: Check GitLab health
   uri:
-    url: http://127.0.0.1:8080/-/health
+    url: http://127.0.0.1:80/-/health
     return_content: yes
-  # Register the output of the module in a variable
   register: gitlab_health
 
 - name: Print GitLab health
   debug:
     msg: "{{ gitlab_health.content }}"
 
-# Run the 2 other kind of health checks below
+# ============================================================
+# 2. Readiness Check
+# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#readiness
+# ============================================================
+- name: Check GitLab readiness
+  uri:
+    url: http://127.0.0.1:80/-/readiness
+    return_content: yes
+  register: gitlab_readiness
+
+- name: Print GitLab readiness
+  debug:
+    msg: "{{ gitlab_readiness.json }}"
+
+# ============================================================
+# 3. Liveness Check
+# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#liveness
+# ============================================================
+- name: Check GitLab liveness
+  uri:
+    url: http://127.0.0.1:80/-/liveness
+    return_content: yes
+  register: gitlab_liveness
+
+- name: Print GitLab liveness
+  debug:
+    msg: "{{ gitlab_liveness.json }}"
+
+# ============================================================
+# BONUS: Print dysfunctional services from readiness check
+# To test: run 'sudo gitlab-ctl stop redis' before executing
+# ============================================================
+- name: Identify dysfunctional services
+  set_fact:
+    dysfunctional_services: >-
+      {{
+        gitlab_readiness.json
+        | dict2items
+        | selectattr('value', 'mapping')
+        | selectattr('value.status', 'defined')
+        | selectattr('value.status', 'ne', 'ok')
+        | map(attribute='key')
+        | list
+      }}
+  when: gitlab_readiness.json is defined
+
+- name: Print dysfunctional services (if any)
+  debug:
+    msg: >-
+      {% if dysfunctional_services | length > 0 %}
+      WARNING: The following services are NOT healthy: {{ dysfunctional_services | join(', ') }}
+      {% else %}
+      All services are healthy!
+      {% endif %}
+  when: dysfunctional_services is defined

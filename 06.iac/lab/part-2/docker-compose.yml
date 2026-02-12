@@ -1,0 +1,50 @@
+# Docker equivalent of the Vagrant Rocky 8 VM with GitLab (Part 2)
+# Uses the official GitLab Docker image instead of installing via Ansible on a VM
+# This achieves the same result: a running GitLab instance accessible on port 8080
+
+version: '3.8'
+
+services:
+  gitlab_server:
+    image: gitlab/gitlab-ee:latest
+    container_name: gitlab.server.local
+    hostname: gitlab.local
+    restart: always
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab.local'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+        # Reduce memory usage for lab environment
+        puma['worker_processes'] = 2
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+    ports:
+      # Equivalent to: config.vm.network "forwarded_port", guest: 80, host: 8080
+      # Using port 8888 because 8080 is occupied by Coolify
+      - "8888:80"
+      - "2224:22"
+    volumes:
+      - gitlab_config:/etc/gitlab
+      - gitlab_logs:/var/log/gitlab
+      - gitlab_data:/var/opt/gitlab
+      # Mount playbooks for Ansible provisioning inside the container
+      - ./playbooks:/vagrant/playbooks:ro
+    deploy:
+      resources:
+        limits:
+          # Equivalent to Vagrant VM specs: 4096 MB RAM, 2 CPUs
+          memory: 4096M
+          cpus: '2'
+    shm_size: '256m'
+    # Health check equivalent to Part 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/-/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+volumes:
+  gitlab_config:
+  gitlab_logs:
+  gitlab_data:
