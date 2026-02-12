@@ -195,7 +195,10 @@ vagrant ssh
 
 # Stop Redis to simulate a failure
 sudo gitlab-ctl stop redis
+```
+![Redis Stop Check](images-screens/Redis%20Stop%20Check.jpg)
 
+```bash
 # Run the health check playbook
 ansible-playbook /vagrant/playbooks/run.yml \
   --tags check \
