@@ -1,26 +1,7 @@
 ---
-# OPTIONAL TASKS (needed to run checks from the host machine)
-# - name: Uncomment the GitLab IP whitelist line
-#   replace:
-#     path: /etc/gitlab/gitlab.rb
-#     regexp: '^# (gitlab_rails\[''monitoring_whitelist''\] = \[.*)\]$'
-#     replace: '\1, ''20.20.20.1'']'
-
-# - name: Reconfigure GitLab
-#   command: gitlab-ctl reconfigure
-
-# - name: Restart unicorn
-#   command: gitlab-ctl restart unicorn
-#   retries: 2
-# END OF OPTIONAL TASKS
-
-# ============================================================
-# 1. Health Check (basic)
-# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#health
-# ============================================================
 - name: Check GitLab health
   uri:
-    url: http://127.0.0.1:80/-/health
+    url: "http://127.0.0.1/-/health"
     return_content: yes
   register: gitlab_health
 
@@ -28,61 +9,25 @@
   debug:
     msg: "{{ gitlab_health.content }}"
 
-# ============================================================
-# 2. Readiness Check
-# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#readiness
-# Using ?all=1 to get detailed status of all sub-services
-# ============================================================
-- name: Check GitLab readiness
+- name: Run Readiness Check
   uri:
-    url: http://127.0.0.1:80/-/readiness?all=1
-    return_content: yes
-  register: gitlab_readiness
-  failed_when: false
+    url: "http://127.0.0.1/-/readiness?all=1"
+    status_code: [200, 503] # On accepte le 503 comme une réponse valide
+  register: readiness_result
 
-- name: Print GitLab readiness
-  debug:
-    msg: "{{ gitlab_readiness.json }}"
-
-# ============================================================
-# 3. Liveness Check
-# https://docs.gitlab.com/ee/administration/monitoring/health_check.html#liveness
-# ============================================================
-- name: Check GitLab liveness
+- name: Run Liveness Check
   uri:
-    url: http://127.0.0.1:80/-/liveness
-    return_content: yes
-  register: gitlab_liveness
+    url: "http://127.0.0.1/-/liveness?all=1"
+    status_code: [200, 503]
+  register: liveness_result
 
-- name: Print GitLab liveness
+- name: Print Health Results
   debug:
-    msg: "{{ gitlab_liveness.json }}"
+    msg: 
+      - "Readiness: {{ readiness_result.json.status }}"
+      - "Liveness: {{ liveness_result.json.status }}"
 
-# ============================================================
-# BONUS: Print dysfunctional services from readiness check
-# To test: run 'sudo gitlab-ctl stop redis' before executing
-# Uses the ?all=1 readiness response which returns per-service status
-# ============================================================
-- name: Identify dysfunctional services
-  set_fact:
-    dysfunctional_services: >-
-      {{
-        gitlab_readiness.json
-        | dict2items
-        | rejectattr('key', 'equalto', 'status')
-        | selectattr('value.0.status', 'defined')
-        | selectattr('value.0.status', 'ne', 'ok')
-        | map(attribute='key')
-        | list
-      }}
-  when: gitlab_readiness.json is defined
-
-- name: Print dysfunctional services (if any)
+- name: Bonus - Dysfunctional services
   debug:
-    msg: >-
-      {% if dysfunctional_services | length > 0 %}
-      WARNING: The following services are NOT healthy: {{ dysfunctional_services | join(', ') }}
-      {% else %}
-      All services are healthy!
-      {% endif %}
-  when: dysfunctional_services is defined
+    msg: "{{ readiness_result.json | dict2items | selectattr('key', 'ne', 'status') | selectattr('value.0.status', 'defined') | selectattr('value.0.status', 'ne', 'ok') | map(attribute='key') | list }}"
+  when: readiness_result.json.status != 'ok'

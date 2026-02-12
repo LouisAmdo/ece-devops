@@ -1,11 +1,8 @@
 ---
-- hosts: all
-  # Run commands as root
+- hosts: gitlab_server
   become: true
-  # Roles to be executed on these hosts
   roles:
   - role: gitlab/install
     tags: install
-
   - role: gitlab/healthchecks
     tags: check
