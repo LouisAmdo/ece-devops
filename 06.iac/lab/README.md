@@ -42,12 +42,16 @@ cd lab/part-1
 
 # Create and provision the VM
 vagrant up
+![Vagrant Up](images-screens/Vagrant-Up.jpg)
+![Vagrant Provision](images-screens/Vagrant%20Provision.jpg)
 
 # Check VM status
 vagrant status
+![Vagrant Status](images-screens/Vagrant-Status.jpg)
 
 # SSH into the VM
 vagrant ssh
+![Vagrant SSH](images-screens/Vagrant%20ssh.jpg)
 ```
 
 ### Expected output — `vagrant up`
@@ -77,12 +81,17 @@ Bringing machine 'centos_server' up with 'virtualbox' provider...
 Thu Feb 12 14:30:00 UTC 2026
 ```
 
+![Cat Etc Hosts](images-screens/cat%20etc%20hosts.jpg)
+
 ### Cleanup
 
 ```bash
 vagrant halt     # stop the VM
 vagrant destroy  # remove the VM
 ```
+
+![Vagrant Destroy](images-screens/Vagrant%20Destroy.jpg)
+
 
 ---
 
@@ -111,11 +120,17 @@ The playbook (`playbooks/run.yml`) executes two roles:
 ```bash
 cd lab/part-2
 
+# Upload playbooks (if needed)
+# vagrant upload playbooks
+![Vagrant Upload Playbooks](images-screens/vagrant%20upload%20playbooks.jpg)
+
 # Create the VM and install GitLab (takes 5-10 min)
 vagrant up
+![Vagrant Provision 2](images-screens/vagrant%20provision-2.jpg)
 
 # Check VM status
 vagrant status
+![Vagrant Status 2](images-screens/Vagrant%20status-2.jpg)
 ```
 
 ### Expected output — `vagrant up`
@@ -180,6 +195,7 @@ You should see the GitLab login page. Log in with:
   vagrant ssh
   sudo cat /etc/gitlab/initial_root_password
   ```
+  ![Vagrant SSH 2](images-screens/vagrant%20ssh-2.jpg)
 
 ---
 
@@ -202,6 +218,7 @@ curl "http://127.0.0.1/-/readiness?all=1"
 curl http://127.0.0.1/-/liveness
 # Output: {"status":"ok"}
 ```
+![Curl Health](images-screens/curl%20health.jpg)
 
 ### Run with Ansible (inside the VM)
 
@@ -213,6 +230,8 @@ ansible-playbook /vagrant/playbooks/run.yml \
   --tags check \
   -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
 ```
+
+![Vagrant Provision 3](images-screens/vagrant%20provision-3.jpg)
 
 ### Expected Ansible output
 
@@ -298,6 +317,7 @@ ansible-playbook /vagrant/playbooks/run.yml \
   --tags check \
   -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
 ```
+![Ansible Playbook Tag](images-screens/ansible%20playbook--tag.jpg)
 
 ### Expected output with Redis stopped
 
