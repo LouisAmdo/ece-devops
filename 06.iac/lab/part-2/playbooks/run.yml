@@ -1,5 +1,5 @@
 ---
-- hosts: gitlab_server
+- hosts: all
   # Run commands as root
   become: true
   # Roles to be executed on these hosts

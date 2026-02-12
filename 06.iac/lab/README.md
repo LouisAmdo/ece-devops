@@ -1,226 +1,336 @@
-# Lab 6 - Infrastructure as Code (IaC)
+# Lab 6 — Infrastructure as Code (IaC)
 
 ## Overview
 
-This lab demonstrates Infrastructure as Code (IaC) using both **imperative** and **declarative** approaches.  
-Since this environment uses **Docker** instead of VirtualBox/Vagrant, we adapted all exercises to run with Docker and docker-compose.
+This lab demonstrates Infrastructure as Code (IaC) using **Vagrant** and **VirtualBox** with two approaches:
+
+- **Imperative** (Part 1): Shell provisioning on a CentOS 7 VM
+- **Declarative** (Part 2): GitLab installation via Ansible on a Rocky 8 VM
+- **Health checks** (Part 3): Automated verification of GitLab services
+- **Bonus**: Detection of dysfunctional services
 
 ---
 
-## Part 1: Imperative - Shell Provisioning (Docker equivalent)
+## Prerequisites
 
-### Description
+- VirtualBox installed — https://www.virtualbox.org/wiki/Downloads
+- Vagrant installed — https://www.vagrantup.com/downloads.html
+- Vagrant box downloaded:
+  ```bash
+  vagrant box add centos/7       # choose virtualbox provider
+  vagrant box add generic/rocky8 # choose virtualbox provider
+  ```
 
-Instead of using Vagrant with a CentOS 7 VM, we use a Docker container based on `rockylinux:8` (CentOS 7 is EOL, Rocky 8 is the same RHEL family).  
-The Dockerfile replicates the shell provisioning steps from the Vagrantfile:
+---
 
-1. **Hello, World** - echoed on container start
-2. **`/etc/hosts` modification** - adds `127.0.0.1 mydomain-1.local`
-3. **Provisioning timestamp** - writes the date to `/etc/vagrant_provisioned_at`
+## Part 1 — Imperative: Shell Provisioner
 
-### How to run
+### Vagrantfile
+
+The `part-1/Vagrantfile` defines a CentOS 7 VM with three shell provisioning steps:
+
+1. Prints `Hello, World`
+2. Adds `127.0.0.1  mydomain-1.local` to `/etc/hosts`
+3. Writes the provisioning date to `/etc/vagrant_provisioned_at`
+
+The VM is exposed on a private network at `192.168.56.10`.
+
+### Commands
 
 ```bash
-cd 06.iac/lab/part-1
+cd lab/part-1
 
-# Build and start (equivalent to `vagrant up`)
-docker compose up -d --build
+# Create and provision the VM
+vagrant up
 
-# Check the container is running (equivalent to `vagrant status`)
-docker compose ps
+# Check VM status
+vagrant status
 
-# Enter the container (equivalent to `vagrant ssh`)
-docker exec -it centos.server.local bash
-
-# Inside the container, verify provisioning:
-cat /etc/hosts
-# You should see: 127.0.0.1  mydomain-1.local
-cat /etc/vagrant_provisioned_at
-# You should see the provisioning date
-
-# Stop the container (equivalent to `vagrant halt`)
-docker compose stop
-
-# Destroy the container (equivalent to `vagrant destroy`)
-docker compose down
+# SSH into the VM
+vagrant ssh
 ```
 
-### Verification output
+### Expected output — `vagrant up`
 
 ```
-$ docker logs centos.server.local
-=== Hello, World ===
+Bringing machine 'centos_server' up with 'virtualbox' provider...
+==> centos_server: Importing base box 'centos/7'...
+==> centos_server: Setting the name of the VM: centos.server.local
+==> centos_server: Configuring and enabling network interfaces...
+==> centos_server: Running provisioner: shell...
+    centos_server: Hello, World
+==> centos_server: Running provisioner: shell...
+    centos_server: Running: inline script
+==> centos_server: Running provisioner: shell...
+    centos_server: I am provisioning...
+```
 
-=== /etc/hosts content ===
-127.0.0.1       localhost
-::1     localhost ip6-localhost ip6-loopback
-...
+### Expected output — `vagrant ssh` verification
+
+```bash
+[vagrant@centos_server ~]$ cat /etc/hosts
+127.0.0.1   localhost localhost.localdomain
+::1         localhost localhost.localdomain
 127.0.0.1  mydomain-1.local
 
-=== Provisioned at ===
-Thu Feb 12 13:39:02 UTC 2026
+[vagrant@centos_server ~]$ cat /etc/vagrant_provisioned_at
+Thu Feb 12 14:30:00 UTC 2026
+```
 
-Container is ready. Use docker exec -it centos.server.local bash to connect.
+### Cleanup
+
+```bash
+vagrant halt     # stop the VM
+vagrant destroy  # remove the VM
 ```
 
 ---
 
-## Part 2: Declarative - GitLab Installation (Docker equivalent)
+## Part 2 — Declarative: GitLab with Ansible Provisioner
 
-### Description
+### Vagrantfile
 
-Instead of using Vagrant + Ansible to install GitLab on a Rocky 8 VM, we use the official `gitlab/gitlab-ce` Docker image.  
-This achieves the same result: a running GitLab instance accessible on `http://localhost:8888`.
+The `part-2/Vagrantfile` defines a Rocky 8 VM (`gitlab_server`) with:
 
-The `docker-compose.yml` replicates the Vagrant configuration:
-- **Port forwarding**: guest 80 → host 8888
-- **Resources**: 2560 MB RAM, 2 CPUs (optimized for 8GB server)
-- **Ansible playbooks**: mounted at `/vagrant/playbooks` for reference
-- **Memory optimizations**: Puma worker 0, Sidekiq concurrency 2, Prometheus/KAS/Pages/Registry disabled
+- **4 GB RAM**, **2 CPUs**
+- Port forwarding: guest `80` → host `8080` (bound to `127.0.0.1` only)
+- Private network: `192.168.56.20`
+- **`ansible_local`** provisioner: installs Ansible inside the VM and runs the `playbooks/run.yml` playbook with the `install` tag
 
-### How to run
+### Ansible roles
+
+The playbook (`playbooks/run.yml`) executes two roles:
+
+| Role | Tag | Description |
+|------|-----|-------------|
+| `gitlab/install` | `install` | Installs packages, configures firewall, installs Postfix and GitLab EE |
+| `gitlab/healthchecks` | `check` | Runs health, readiness, and liveness checks |
+
+### Commands
 
 ```bash
-cd 06.iac/lab/part-2
+cd lab/part-2
 
-# Start GitLab (equivalent to `vagrant up`)
-docker compose up -d
+# Create the VM and install GitLab (takes 5-10 min)
+vagrant up
 
-# Check status
-docker compose ps
-
-# Wait 5-10 minutes for GitLab to initialize, then check health:
-docker exec gitlab.server.local curl -s http://127.0.0.1/-/health
-# Expected: GitLab OK
-
-# Access GitLab in browser
-# Open: http://localhost:8888
-
-# Get the initial root password:
-docker exec gitlab.server.local cat /etc/gitlab/initial_root_password | grep Password:
-
-# Stop GitLab (equivalent to `vagrant halt`)
-docker compose stop
-
-# Destroy GitLab (equivalent to `vagrant destroy`)
-docker compose down -v
+# Check VM status
+vagrant status
 ```
 
-### Verification output
+### Expected output — `vagrant up`
 
 ```
-$ docker exec gitlab.server.local curl -s http://127.0.0.1/-/health
-GitLab OK
+Bringing machine 'gitlab_server' up with 'virtualbox' provider...
+==> gitlab_server: Importing base box 'generic/rocky8'...
+==> gitlab_server: Setting the name of the VM: gitlab.server.local
+==> gitlab_server: Configuring and enabling network interfaces...
+==> gitlab_server: Running provisioner: ansible_local...
+    gitlab_server: Installing Ansible...
+    gitlab_server: Running ansible-playbook...
 
-$ docker exec gitlab.server.local curl -s http://127.0.0.1/-/readiness
-{"status":"ok"}
+PLAY [all] *********************************************************************
 
-$ docker exec gitlab.server.local curl -s http://127.0.0.1/-/liveness
-{"status":"ok"}
+TASK [Gathering Facts] *********************************************************
+ok: [gitlab_server]
+
+TASK [gitlab/install : Install required packages] ******************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Enable and start sshd] **********************************
+ok: [gitlab_server]
+
+TASK [gitlab/install : Enable HTTP+HTTPS access] *******************************
+changed: [gitlab_server] => (item=http)
+changed: [gitlab_server] => (item=https)
+
+TASK [gitlab/install : Reload firewalld] ***************************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Install postfix] ****************************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Listen only ipv4 with postfix] **************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Enable and start postfix] *******************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Download GitLab install script] *************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Execute GitLab install script] **************************
+changed: [gitlab_server]
+
+TASK [gitlab/install : Install GitLab] *****************************************
+changed: [gitlab_server]
+
+PLAY RECAP *********************************************************************
+gitlab_server : ok=11  changed=9  unreachable=0  failed=0  skipped=0
 ```
+
+### Test the installation
+
+Open in browser: **http://127.0.0.1:8080**
+
+You should see the GitLab login page. Log in with:
+- **Username**: `root`
+- **Password**: found inside the VM:
+  ```bash
+  vagrant ssh
+  sudo cat /etc/gitlab/initial_root_password
+  ```
 
 ---
 
-## Part 3: Health Checks
+## Part 3 — Health Checks
 
-### Description
-
-The health check playbook (`playbooks/roles/gitlab/healthchecks/tasks/main.yml`) implements **three** types of health checks using the Ansible `uri` module:
-
-1. **Health check** (`/-/health`) — basic "GitLab OK" response
-2. **Readiness check** (`/-/readiness?all=1`) — verifies all sub-services (db, redis, cache, etc.)
-3. **Liveness check** (`/-/liveness`) — confirms the application is alive
-
-### Running health checks manually (inside the container)
+### Manual checks (inside the VM)
 
 ```bash
+vagrant ssh
+
 # Health check
-docker exec gitlab.server.local curl -s http://127.0.0.1/-/health
+curl http://127.0.0.1/-/health
 # Output: GitLab OK
 
-# Readiness check (detailed with all sub-services)
-docker exec gitlab.server.local curl -s "http://127.0.0.1/-/readiness?all=1"
-# Output: {"status":"ok","db_check":[{"status":"ok"}],...}
+# Readiness check (detailed)
+curl "http://127.0.0.1/-/readiness?all=1"
+# Output: {"status":"ok","db_check":[{"status":"ok"}],"cache_check":[{"status":"ok"}],...}
 
 # Liveness check
-docker exec gitlab.server.local curl -s http://127.0.0.1/-/liveness
+curl http://127.0.0.1/-/liveness
 # Output: {"status":"ok"}
 ```
 
-### Running with Ansible (inside the container)
+### Run with Ansible (inside the VM)
 
 ```bash
-# Install Ansible inside the container
-docker exec gitlab.server.local bash -c "apt-get update && apt-get install -y ansible"
+vagrant ssh
 
-# Run the health check playbook
-docker exec gitlab.server.local ansible-playbook /vagrant/playbooks/run.yml --tags check -c local -i "localhost,"
+# Run the healthcheck playbook with the 'check' tag
+ansible-playbook /vagrant/playbooks/run.yml \
+  --tags check \
+  -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
+```
+
+### Expected Ansible output
+
+```
+PLAY [all] *********************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Check GitLab health] *******************************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print GitLab health] *******************************
+ok: [gitlab_server] => {
+    "msg": "GitLab OK"
+}
+
+TASK [gitlab/healthchecks : Check GitLab readiness] ****************************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print GitLab readiness] ****************************
+ok: [gitlab_server] => {
+    "msg": {
+        "status": "ok",
+        "db_check": [{"status": "ok"}],
+        "cache_check": [{"status": "ok"}],
+        "queues_check": [{"status": "ok"}],
+        "shared_state_check": [{"status": "ok"}],
+        "gitaly_check": [{"status": "ok", "labels": {"shard": "default"}}]
+    }
+}
+
+TASK [gitlab/healthchecks : Check GitLab liveness] *****************************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print GitLab liveness] *****************************
+ok: [gitlab_server] => {
+    "msg": {
+        "status": "ok"
+    }
+}
+
+TASK [gitlab/healthchecks : Identify dysfunctional services] *******************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print dysfunctional services (if any)] *************
+ok: [gitlab_server] => {
+    "msg": "All services are healthy!"
+}
+
+PLAY RECAP *********************************************************************
+gitlab_server : ok=9  changed=0  unreachable=0  failed=0  skipped=0
 ```
 
 ### Health check playbook tasks
 
-| Task | Endpoint | Purpose |
-|------|----------|---------|
-| `Check GitLab health` | `/-/health` | Returns "GitLab OK" if the app is running |
-| `Check GitLab readiness` | `/-/readiness` | JSON response with status of all sub-services |
-| `Check GitLab liveness` | `/-/liveness` | JSON response confirming the app process is alive |
+| Task | Endpoint | Response |
+|------|----------|----------|
+| Health check | `/-/health` | `GitLab OK` |
+| Readiness check | `/-/readiness?all=1` | JSON with per-service status |
+| Liveness check | `/-/liveness` | `{"status":"ok"}` |
 
 ---
 
-## Bonus: Dysfunctional Services Detection
+## Bonus — Dysfunctional Services Detection
 
-### Description
+The bonus task adds logic in the healthchecks playbook to:
 
-The bonus task adds two extra Ansible tasks to the health check playbook:
+1. Parse the readiness JSON response
+2. Filter services where `status != "ok"`
+3. Print only the dysfunctional service names
 
-1. **Identify dysfunctional services** — parses the readiness JSON response and filters services where `status != 'ok'`
-2. **Print dysfunctional services** — displays a warning with the list of broken services, or "All services are healthy!" if everything is OK
-
-### Testing with a stopped Redis service
+### How to test
 
 ```bash
+vagrant ssh
+
 # Stop Redis to simulate a failure
-docker exec gitlab.server.local gitlab-ctl stop redis
+sudo gitlab-ctl stop redis
 
-# Run detailed readiness check — shows all failed Redis-dependent services
-docker exec gitlab.server.local curl -s "http://127.0.0.1/-/readiness?all=1"
-# Output: {"status":"failed","cache_check":[{"status":"failed",...}],...}
-
-# Restart Redis
-docker exec gitlab.server.local gitlab-ctl start redis
+# Run the health check playbook
+ansible-playbook /vagrant/playbooks/run.yml \
+  --tags check \
+  -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
 ```
 
-### Actual output with Redis stopped
+### Expected output with Redis stopped
 
-```json
-{
-  "status": "failed",
-  "db_check": [{"status": "ok"}],
-  "cache_check": [{"status": "failed", "message": "...redis.socket..."}],
-  "feature_flag_check": [{"status": "failed", "message": "...redis.socket..."}],
-  "queues_check": [{"status": "failed", "message": "...redis.socket..."}],
-  "sessions_check": [{"status": "failed", "message": "...redis.socket..."}],
-  "shared_state_check": [{"status": "failed", "message": "...redis.socket..."}],
-  "gitaly_check": [{"status": "ok"}]
+```
+TASK [gitlab/healthchecks : Check GitLab readiness] ****************************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print GitLab readiness] ****************************
+ok: [gitlab_server] => {
+    "msg": {
+        "status": "failed",
+        "db_check": [{"status": "ok"}],
+        "cache_check": [{"status": "failed", "message": "...redis.socket..."}],
+        "queues_check": [{"status": "failed", "message": "...redis.socket..."}],
+        "sessions_check": [{"status": "failed", "message": "...redis.socket..."}],
+        "shared_state_check": [{"status": "failed", "message": "...redis.socket..."}],
+        "gitaly_check": [{"status": "ok"}]
+    }
+}
+
+TASK [gitlab/healthchecks : Identify dysfunctional services] *******************
+ok: [gitlab_server]
+
+TASK [gitlab/healthchecks : Print dysfunctional services (if any)] *************
+ok: [gitlab_server] => {
+    "msg": "WARNING: The following services are NOT healthy: cache_check, queues_check, sessions_check, shared_state_check"
 }
 ```
 
-### Expected Ansible output (bonus task)
+### Restart Redis after testing
 
-When all services are healthy:
-```
-TASK [gitlab/healthchecks : Print dysfunctional services (if any)] ************
-ok: [localhost] => {
-    "msg": "All services are healthy!"
-}
-```
-
-When Redis is stopped:
-```
-TASK [gitlab/healthchecks : Print dysfunctional services (if any)] ************
-ok: [localhost] => {
-    "msg": "WARNING: The following services are NOT healthy: redis_check"
-}
+```bash
+sudo gitlab-ctl start redis
 ```
 
 ---
@@ -229,41 +339,30 @@ ok: [localhost] => {
 
 ```
 lab/
+├── README.md
 ├── part-1/
-│   ├── Vagrantfile              # Original Vagrant config (imperative)
-│   ├── Dockerfile               # Docker equivalent
-│   ├── docker-compose.yml       # Docker Compose to manage the container
+│   ├── Vagrantfile          # CentOS 7 VM with shell provisioning
 │   └── .gitignore
-├── part-2/
-│   ├── Vagrantfile              # Original Vagrant config (declarative)
-│   ├── docker-compose.yml       # Docker equivalent with GitLab
-│   ├── .gitignore
-│   └── playbooks/
-│       ├── run.yml              # Main Ansible playbook
-│       └── roles/
-│           └── gitlab/
-│               ├── install/
-│               │   └── tasks/
-│               │       └── main.yml    # GitLab installation tasks
-│               └── healthchecks/
-│                   └── tasks/
-│                       └── main.yml    # Health, readiness, liveness checks + bonus
+└── part-2/
+    ├── Vagrantfile          # Rocky 8 VM with Ansible provisioning
+    ├── .gitignore
+    └── playbooks/
+        ├── run.yml          # Main Ansible playbook (install + check tags)
+        └── roles/
+            └── gitlab/
+                ├── install/
+                │   └── tasks/
+                │       └── main.yml    # GitLab EE installation tasks
+                └── healthchecks/
+                    └── tasks/
+                        └── main.yml    # Health, readiness, liveness + bonus
 ```
 
 ---
 
-## Tools Used
+## Notes
 
-| Tool | Purpose |
-|------|---------|
-| Docker | Container runtime (replaces VirtualBox) |
-| Docker Compose | Container orchestration (replaces Vagrant) |
-| Ansible | Declarative configuration management |
-| GitLab EE | Self-hosted Git platform |
-| curl | HTTP health check testing |
-
----
-
-## Author
-
-ECE DevOps Lab 6 - Infrastructure as Code
+- Port forwarding is bound to `127.0.0.1` (not `0.0.0.0`) for security.
+- The VM uses a private network (`192.168.56.x`) for host-only communication.
+- GitLab installation takes 5–10 minutes on first `vagrant up`.
+- The `ansible_local` provisioner installs Ansible inside the guest, so it is **not** required on the host machine.
