@@ -1,0 +1,33 @@
+---
+- name: Check GitLab health
+  uri:
+    url: "http://127.0.0.1/-/health"
+    return_content: yes
+  register: gitlab_health
+
+- name: Print GitLab health
+  debug:
+    msg: "{{ gitlab_health.content }}"
+
+- name: Run Readiness Check
+  uri:
+    url: "http://127.0.0.1/-/readiness?all=1"
+    status_code: [200, 503] # On accepte le 503 comme une réponse valide
+  register: readiness_result
+
+- name: Run Liveness Check
+  uri:
+    url: "http://127.0.0.1/-/liveness?all=1"
+    status_code: [200, 503]
+  register: liveness_result
+
+- name: Print Health Results
+  debug:
+    msg: 
+      - "Readiness: {{ readiness_result.json.status }}"
+      - "Liveness: {{ liveness_result.json.status }}"
+
+- name: Bonus - Dysfunctional services
+  debug:
+    msg: "{{ readiness_result.json | dict2items | selectattr('key', 'ne', 'status') | selectattr('value.0.status', 'defined') | selectattr('value.0.status', 'ne', 'ok') | map(attribute='key') | list }}"
+  when: readiness_result.json.status != 'ok'
