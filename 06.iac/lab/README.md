@@ -42,46 +42,20 @@ cd lab/part-1
 
 # Create and provision the VM
 vagrant up
-![Vagrant Up](images-screens/Vagrant-Up.jpg)
+![Vagrant Up](images-screens/Vagrant%20Up.jpg)
 ![Vagrant Provision](images-screens/Vagrant%20Provision.jpg)
 
 # Check VM status
 vagrant status
-![Vagrant Status](images-screens/Vagrant-Status.jpg)
+![Vagrant Status](images-screens/Vagrant%20Status.jpg)
 
 # SSH into the VM
 vagrant ssh
 ![Vagrant SSH](images-screens/Vagrant%20ssh.jpg)
 ```
 
-### Expected output — `vagrant up`
-
-```
-Bringing machine 'centos_server' up with 'virtualbox' provider...
-==> centos_server: Importing base box 'centos/7'...
-==> centos_server: Setting the name of the VM: centos.server.local
-==> centos_server: Configuring and enabling network interfaces...
-==> centos_server: Running provisioner: shell...
-    centos_server: Hello, World
-==> centos_server: Running provisioner: shell...
-    centos_server: Running: inline script
-==> centos_server: Running provisioner: shell...
-    centos_server: I am provisioning...
-```
-
-### Expected output — `vagrant ssh` verification
-
-```bash
-[vagrant@centos_server ~]$ cat /etc/hosts
-127.0.0.1   localhost localhost.localdomain
-::1         localhost localhost.localdomain
-127.0.0.1  mydomain-1.local
-
-[vagrant@centos_server ~]$ cat /etc/vagrant_provisioned_at
-Thu Feb 12 14:30:00 UTC 2026
-```
-
 ![Cat Etc Hosts](images-screens/cat%20etc%20hosts.jpg)
+
 
 ### Cleanup
 
@@ -90,6 +64,7 @@ vagrant halt     # stop the VM
 vagrant destroy  # remove the VM
 ```
 
+![Vagrant Halt](images-screens/vagrant%20halt.jpg)
 ![Vagrant Destroy](images-screens/Vagrant%20Destroy.jpg)
 
 
@@ -130,58 +105,7 @@ vagrant up
 
 # Check VM status
 vagrant status
-![Vagrant Status 2](images-screens/Vagrant%20status-2.jpg)
-```
-
-### Expected output — `vagrant up`
-
-```
-Bringing machine 'gitlab_server' up with 'virtualbox' provider...
-==> gitlab_server: Importing base box 'generic/rocky8'...
-==> gitlab_server: Setting the name of the VM: gitlab.server.local
-==> gitlab_server: Configuring and enabling network interfaces...
-==> gitlab_server: Running provisioner: ansible_local...
-    gitlab_server: Installing Ansible...
-    gitlab_server: Running ansible-playbook...
-
-PLAY [all] *********************************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [gitlab_server]
-
-TASK [gitlab/install : Install required packages] ******************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Enable and start sshd] **********************************
-ok: [gitlab_server]
-
-TASK [gitlab/install : Enable HTTP+HTTPS access] *******************************
-changed: [gitlab_server] => (item=http)
-changed: [gitlab_server] => (item=https)
-
-TASK [gitlab/install : Reload firewalld] ***************************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Install postfix] ****************************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Listen only ipv4 with postfix] **************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Enable and start postfix] *******************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Download GitLab install script] *************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Execute GitLab install script] **************************
-changed: [gitlab_server]
-
-TASK [gitlab/install : Install GitLab] *****************************************
-changed: [gitlab_server]
-
-PLAY RECAP *********************************************************************
-gitlab_server : ok=11  changed=9  unreachable=0  failed=0  skipped=0
+![Vagrant Status 2](images-screens/Vagrant%20status%202.jpg)
 ```
 
 ### Test the installation
@@ -195,7 +119,10 @@ You should see the GitLab login page. Log in with:
   vagrant ssh
   sudo cat /etc/gitlab/initial_root_password
   ```
-  ![Vagrant SSH 2](images-screens/vagrant%20ssh-2.jpg)
+  ![Vagrant SSH 2](images-screens/vagrant%20ssh%202.jpg)
+
+![GitLab UI](images-screens/GitLab%20UI%20Proof%20Working.png)
+
 
 ---
 
@@ -231,60 +158,7 @@ ansible-playbook /vagrant/playbooks/run.yml \
   -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
 ```
 
-![Vagrant Provision 3](images-screens/vagrant%20provision-3.jpg)
-
-### Expected Ansible output
-
-```
-PLAY [all] *********************************************************************
-
-TASK [Gathering Facts] *********************************************************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Check GitLab health] *******************************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print GitLab health] *******************************
-ok: [gitlab_server] => {
-    "msg": "GitLab OK"
-}
-
-TASK [gitlab/healthchecks : Check GitLab readiness] ****************************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print GitLab readiness] ****************************
-ok: [gitlab_server] => {
-    "msg": {
-        "status": "ok",
-        "db_check": [{"status": "ok"}],
-        "cache_check": [{"status": "ok"}],
-        "queues_check": [{"status": "ok"}],
-        "shared_state_check": [{"status": "ok"}],
-        "gitaly_check": [{"status": "ok", "labels": {"shard": "default"}}]
-    }
-}
-
-TASK [gitlab/healthchecks : Check GitLab liveness] *****************************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print GitLab liveness] *****************************
-ok: [gitlab_server] => {
-    "msg": {
-        "status": "ok"
-    }
-}
-
-TASK [gitlab/healthchecks : Identify dysfunctional services] *******************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print dysfunctional services (if any)] *************
-ok: [gitlab_server] => {
-    "msg": "All services are healthy!"
-}
-
-PLAY RECAP *********************************************************************
-gitlab_server : ok=9  changed=0  unreachable=0  failed=0  skipped=0
-```
+![Vagrant Provision 3](images-screens/vagrant%20provision%203.jpg)
 
 ### Health check playbook tasks
 
@@ -317,35 +191,7 @@ ansible-playbook /vagrant/playbooks/run.yml \
   --tags check \
   -i /tmp/vagrant-ansible/inventory/vagrant_ansible_local_inventory
 ```
-![Ansible Playbook Tag](images-screens/ansible%20playbook--tag.jpg)
-
-### Expected output with Redis stopped
-
-```
-TASK [gitlab/healthchecks : Check GitLab readiness] ****************************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print GitLab readiness] ****************************
-ok: [gitlab_server] => {
-    "msg": {
-        "status": "failed",
-        "db_check": [{"status": "ok"}],
-        "cache_check": [{"status": "failed", "message": "...redis.socket..."}],
-        "queues_check": [{"status": "failed", "message": "...redis.socket..."}],
-        "sessions_check": [{"status": "failed", "message": "...redis.socket..."}],
-        "shared_state_check": [{"status": "failed", "message": "...redis.socket..."}],
-        "gitaly_check": [{"status": "ok"}]
-    }
-}
-
-TASK [gitlab/healthchecks : Identify dysfunctional services] *******************
-ok: [gitlab_server]
-
-TASK [gitlab/healthchecks : Print dysfunctional services (if any)] *************
-ok: [gitlab_server] => {
-    "msg": "WARNING: The following services are NOT healthy: cache_check, queues_check, sessions_check, shared_state_check"
-}
-```
+![Ansible Playbook Tag](images-screens/ansible%20playbook%20tag.jpg)
 
 ### Restart Redis after testing
 
