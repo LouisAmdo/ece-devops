@@ -36,19 +36,15 @@ echo "Step 3: Renaming local branch to master..."
 git branch -m master
 
 echo ""
-echo "Step 4: Pushing renamed branch to remote..."
-git push origin master
+echo "Step 4: Pushing renamed branch to remote and setting upstream..."
+git push -u origin master
 
 echo ""
-echo "Step 5: Setting upstream tracking..."
-git push --set-upstream origin master
-
-echo ""
-echo "Step 6: Deleting old lab04-completed branch from remote..."
+echo "Step 5: Deleting old lab04-completed branch from remote..."
 git push origin --delete lab04-completed
 
 echo ""
-echo "Step 7: Deleting other branches from remote..."
+echo "Step 6: Deleting other branches from remote..."
 branches_to_delete=("feature/test-cicd" "lab6" "main")
 
 for branch in "${branches_to_delete[@]}"; do
@@ -57,11 +53,11 @@ for branch in "${branches_to_delete[@]}"; do
 done
 
 echo ""
-echo "Step 8: Cleaning up local tracking references..."
+echo "Step 7: Cleaning up local tracking references..."
 git fetch --prune
 
 echo ""
-echo "Step 9: Deleting local branches (if they exist)..."
+echo "Step 8: Deleting local branches (if they exist)..."
 for branch in "${branches_to_delete[@]}"; do
     git branch -d "$branch" 2>/dev/null || echo "  Local branch $branch not found or already deleted"
 done

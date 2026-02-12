@@ -21,14 +21,11 @@ git checkout lab04-completed
 # Rename the local branch to master
 git branch -m master
 
+# Push the renamed branch to remote
+git push -u origin master
+
 # Delete the old branch on remote
 git push origin --delete lab04-completed
-
-# Push the renamed branch to remote
-git push origin master
-
-# Set upstream tracking
-git push --set-upstream origin master
 ```
 
 ### 2. Delete other branches
