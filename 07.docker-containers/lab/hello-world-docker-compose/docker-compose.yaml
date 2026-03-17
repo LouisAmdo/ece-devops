@@ -1,11 +1,17 @@
-version: '3'
 services:
-  redis:
-    image: redis
-  web:
-    # COMPLETE HERE
+  web-app:
     build: .
     ports:
       - "5000:8080"
     environment:
-      # ...
+      - REDIS_HOST=redis-db
+    depends_on:
+      - redis-db
+
+  redis-db:
+    image: "redis:alpine"
+    volumes:
+      - redis-data:/data # persistence pour le compteur
+
+volumes:
+  redis-data:
