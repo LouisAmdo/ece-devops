@@ -1,4 +1,4 @@
-# 🚀 TP — Orchestration de conteneurs avec Kubernetes
+#  TP — Orchestration de conteneurs avec Kubernetes
  
 Ce document retrace les étapes réalisées lors du TP sur l'orchestration de conteneurs avec **Minikube** et **kubectl**.
  
